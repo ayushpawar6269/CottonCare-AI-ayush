@@ -1,59 +1,179 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CottonCare AI</title>
+<title>CottonCare AI - Cotton Disease Detection</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#f1f8f2;color:#173d2a}
-header{background:#176b43;color:white;padding:22px;text-align:center}
-main{max-width:750px;margin:35px auto;padding:20px}
-.card{background:white;padding:28px;border-radius:18px;box-shadow:0 4px 18px #0001}
-h1{margin:0;font-size:30px}
-h2{color:#176b43}
-p{line-height:1.6}
-input,button{margin-top:15px}
-input{display:block;max-width:100%}
-button{background:#176b43;color:white;border:0;padding:12px 20px;border-radius:8px;cursor:pointer}
-#preview{display:none;max-width:100%;max-height:350px;margin-top:20px;border-radius:12px}
-#message{background:#fff4d6;padding:12px;border-radius:8px;display:none}
-footer{text-align:center;color:#58715f;padding:25px}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f1f8f2;
+  color: #173d2a;
+}
+header {
+  background: #176b43;
+  color: white;
+  padding: 24px;
+  text-align: center;
+}
+main {
+  max-width: 750px;
+  margin: 30px auto;
+  padding: 20px;
+}
+.card {
+  background: white;
+  padding: 28px;
+  border-radius: 18px;
+  box-shadow: 0 4px 18px #0001;
+}
+h2 { color: #176b43; }
+input, button { margin-top: 15px; }
+input { display: block; max-width: 100%; }
+button {
+  background: #176b43;
+  color: white;
+  border: 0;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button:disabled { background: #888; cursor: wait; }
+#preview {
+  display: none;
+  max-width: 100%;
+  max-height: 350px;
+  margin-top: 20px;
+  border-radius: 12px;
+}
+#message {
+  background: #fff4d6;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 18px;
+  white-space: pre-wrap;
+}
+footer {
+  text-align: center;
+  color: #58715f;
+  padding: 25px;
+}
 </style>
 </head>
+
 <body>
 <header>
-<h1>🌱 CottonCare AI</h1>
-<p>Smart Cotton Crop Health Portal</p>
+  <h1>🌱 CottonCare AI</h1>
+  <p>Smart Cotton Crop Health Portal</p>
 </header>
+
 <main>
 <div class="card">
-<h2>Check Your Cotton Crop</h2>
-<p>Apne kapas ke bimaar patte ki photo upload karein.</p>
-<input type="file" id="photo" accept="image/*">
-<img id="preview" alt="Uploaded cotton leaf">
-<p id="message"></p>
-<button id="check" style="display:none">Check Photo</button>
-<p>AI disease detection model agle stage mein connect kiya jayega.</p>
+  <h2>Check Your Cotton Crop</h2>
+  <p>Apne kapas ke patte ki photo upload karein.</p>
+
+  <input type="file" id="photo" accept="image/*">
+  <img id="preview" alt="Uploaded cotton leaf">
+
+  <button id="check" disabled>Loading AI Model...</button>
+  <div id="message">AI model load ho raha hai. Kripya wait karein...</div>
+  <p><small>Note: AI prediction galat ho sakti hai. Treatment se pehle agricultural expert se salah lein.</small></p>
 </div>
 </main>
+
 <footer>Helping farmers grow healthier cotton 🌿</footer>
+
 <script>
-const photo=document.getElementById('photo');
-const preview=document.getElementById('preview');
-const message=document.getElementById('message');
-const check=document.getElementById('check');
-photo.addEventListener('change',function(){
-if(!this.files.length)return;
-preview.src=URL.createObjectURL(this.files[0]);
-preview.style.display='block';
-message.style.display='block';
-message.textContent='Photo upload ho gayi hai. Abhi AI model connect nahi hai, isliye bimari ka result nahi diya ja sakta.';
-check.style.display='inline-block';
+  const MODEL_URL =
+  "https://raw.githubusercontent.com/ayushpawar6269/CottonCare-AI-ayush/main/model.json";
+
+const CLASSES = [
+  "Aphids",
+  "Army worm",
+  "Bacterial blight",
+  "Healthy",
+  "Powdery mildew",
+  "Target spot"
+];
+
+const photo = document.getElementById("photo");
+const preview = document.getElementById("preview");
+const check = document.getElementById("check");
+const message = document.getElementById("message");
+
+let model = null;
+
+async function loadModel() {
+  try {
+    message.textContent = "AI model load ho raha hai...";
+    model = await tf.loadGraphModel(MODEL_URL);
+    check.disabled = false;
+    check.textContent = "Check Cotton Leaf";
+    message.textContent = "AI model ready hai! Ab photo upload karke check karein.";
+  } catch (error) {
+    console.error(error);
+    message.textContent =
+      "Model load nahi hua. Internet connection aur model files check karein. Error: " +
+      error.message;
+  }
+}
+
+photo.addEventListener("change", () => {
+  if (!photo.files || !photo.files[0]) return;
+  preview.src = URL.createObjectURL(photo.files[0]);
+  preview.style.display = "block";
+  message.textContent = "Photo upload ho gayi. Check Cotton Leaf par click karein.";
 });
-check.addEventListener('click',function(){
-message.textContent='Photo ready hai. Asli disease detection ke liye trained AI model connect karna baaki hai.';
+
+check.addEventListener("click", async () => {
+  if (!model) {
+    message.textContent = "AI model abhi load nahi hua.";
+    return;
+  }
+  if (!photo.files || !photo.files[0]) {
+    message.textContent = "Pehle cotton leaf ki photo upload karein.";
+    return;
+  }
+
+  check.disabled = true;
+  message.textContent = "Photo analyze ho rahi hai...";
+
+  try {
+    const image = await tf.browser.fromPixels(preview)
+      .resizeBilinear([160, 160])
+      .toFloat()
+      .div(255)
+      .expandDims(0);
+
+    const output = model.predict(image);
+    const scores = await output.data();
+
+    let bestIndex = 0;
+    for (let i = 1; i < scores.length; i++) {
+      if (scores[i] > scores[bestIndex]) bestIndex = i;
+    }
+
+    const confidence = (scores[bestIndex] * 100).toFixed(2);
+    message.textContent =
+      "Prediction: " + (CLASSES[bestIndex] || "Unknown") +
+      "\nModel score: " + confidence + "%" +
+      "\n\nYeh sirf AI estimate hai, confirmed diagnosis nahi.";
+
+    image.dispose();
+    output.dispose();
+  } catch (error) {
+    console.error(error);
+    message.textContent = "Prediction nahi ho payi: " + error.message;
+  } finally {
+    check.disabled = false;
+  }
 });
+
+loadModel();
 </script>
 </body>
 </html>
